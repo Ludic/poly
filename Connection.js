@@ -1,9 +1,10 @@
 const log = console.log
 
 export default class Connection {
-  constructor(peerA, peerB){
+  constructor(peerA, peerB, ws){
     this.peerA = peerA
     this.peerB = peerB
+    this.ws = ws
     this.A = {
       ice_candidates: []
     }
@@ -33,8 +34,9 @@ export default class Connection {
     this.A.dc.binaryType = 'arraybuffer'
 
     // Setup DataChannel Listeners
-    this.A.dc.onopen = this.peerA_onOpen
-    this.A.dc.onclose = this.peerA_onClose
+    this.A.dc.onopen = this.peerA_onOpen.bind(this)
+    this.A.dc.onclose = this.peerA_onClose.bind(this)
+    this.A.dc.onmessage = this.peerA_onMessage.bind(this)
 
     console.log('Created a DataChannel', this.A.dc)
 
@@ -54,11 +56,12 @@ export default class Connection {
   }
 
   peerA_onOpen(event){
-
+    log("peerA_onOpen: ", event)
+    this.A.dc.send("FUCK")
   }
 
   peerA_onClose(event){
-
+    log("peerA_onClose: ", event)
   }
 
   peerA_onMessage(event){
@@ -72,14 +75,29 @@ export default class Connection {
 
   onPeerBAnswer(desc) {
     console.log("setting peerA remote description")
-    return this.A.rtc.setRemoteDescription(desc)
+    return this.A.rtc.setRemoteDescription(desc).catch(error => {
+      console.error(error)
+    })
   }
 
+  onPeerBICECandidate(candidate) {
+    console.log("onPeerBICECandidate")
+    return this.A.rtc.addIceCandidate(candidate).catch(error => {
+      console.error(error)
+    })
+  }
+
+
   peerA_onIceCandidate(event) {
-    // console.log("onIceCandidate: ", event)
+    log("peerA_onIceCandidate: ", event)
     if(event.candidate){
       this.A.ice_candidates.push(event.candidate)
-      // console.log("peerA has candidate")
+      this.ws.send(JSON.stringify({
+        method: 'peerCandidate',
+        from: this.peerA.id,
+        to: this.peerB.id,
+        candidate: event.candidate
+      }))
     }
   }
 
@@ -91,7 +109,7 @@ export default class Connection {
     this.B.rtc = new RTCPeerConnection(this.servers)
 
     // Setup DataChannel Listeners
-    this.B.rtc.ondatachannel = this.peerB_onDataChannel
+    this.B.rtc.ondatachannel = this.peerB_onDataChannel.bind(this)
 
     // Setup ICE Listeners
     this.B.rtc.onicecandidate = this.peerB_onIceCandidate.bind(this)
@@ -114,11 +132,11 @@ export default class Connection {
   }
 
   peerB_onOpen(event){
-
+    log("peerB_onOpen: ", event)
   }
 
   peerB_onClose(event){
-
+    log("peerB_onClose: ", event)
   }
 
   peerB_onMessage(event){
@@ -127,25 +145,42 @@ export default class Connection {
 
   peerB_onDataChannel(event){
     log("GOT A FUCKING DATA CHANNEL!", event)
-    // this.B.dc = event.channel
-    // this.B.dc.send("FUCK you!!!!!!!!!!!!")
+    this.B.dc = event.channel
+    this.B.dc.onmessage = this.peerB_onMessage.bind(this)
+    this.B.dc.send("FUCK you!!!!!!!!!!!!")
+    log("sent something")
   }
 
   // Remote receives initial desc
   peerB_onOffer(desc){
     console.log("onOffer")
     if(!this.isHost){
-      this.peerB.rtc.setRemoteDescription(desc)
+      this.peerB.rtc.setRemoteDescription(desc).catch(error => {
+        console.error(error)
+      })
     }
   }
 
   peerB_onIceCandidate(event) {
-    // console.log("onIceCandidate: ", event)
+    console.log("peerB_onIceCandidate: ", event)
     if(event.candidate){
       this.B.ice_candidates.push(event.candidate)
-      // console.log("peerB has candidate")
+      this.ws.send(JSON.stringify({
+        method: 'peerCandidate',
+        from: this.peerB.id,
+        to: this.peerA.id,
+        candidate: event.candidate
+      }))
     }
   }
+
+  onPeerAICECandidate(candidate) {
+    console.log("onPeerAICECandidate")
+    return this.B.rtc.addIceCandidate(candidate).catch(error => {
+      console.error(error)
+    })
+  }
+
 
 
   onAddIceCandidateSuccess(){

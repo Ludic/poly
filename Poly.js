@@ -2,7 +2,7 @@ import Lobby from './Lobby.js'
 import Peer from './Peer.js'
 
 const log = console.log
-const POLY_SERVER_URI = "localhost:3000"
+const POLY_SERVER_URI = 'ws://localhost:3000'
 
 class Poly {
   constructor(){
@@ -13,7 +13,7 @@ class Poly {
   }
 
   connect(onConnected){
-    this.socket = new WebSocket('ws://localhost:3000')
+    this.socket = new WebSocket(POLY_SERVER_URI)
     this.socket.addEventListener('open', onConnected)
     this.socket.addEventListener('message', this.onMessage.bind(this))
   }
@@ -64,22 +64,29 @@ class Poly {
   }
 
   async peerBAnswer(event, data){
-    log("peerBAnswer")
-    log("data: ", data)
     let to = data.to
     let from = data.from
     let desc = data.desc
     if(to == this.me.id){
-      log("????????????????????????/")
       await this.me.onPeerBAnswer(from, desc)
     }
   }
 
+  async peerCandidate(event, data){
+    log("peerCandidate: ", data)
+    let to = data.to
+    let from = data.from
+    let candidate = data.candidate
+    if(to == this.me.id){
+      await this.me.onPeerICECandidate(from, candidate)
+    }
+  }
+
+
   // Methods
   host(){
-    log("host")
     this.lobby = new Lobby()
-    this.me = new Peer(this.lobby)
+    this.me = new Peer(this.lobby, null, this.socket)
     this.lobby.join(this.me)
     this.lobbies.push(this.lobby)
     this.socket.send(JSON.stringify({
@@ -90,16 +97,12 @@ class Poly {
   }
 
   async join(lobby){
-    log("join: ", lobby)
     this.lobby = new Lobby(lobby.id, lobby.peers)
-    this.me = new Peer(this.lobby)
+    this.me = new Peer(this.lobby, null, this.socket)
+    log(this.me)
 
     return this.me.initConnections().then(() => {
-      log("done initConnections")
       this.lobby.join(this.me)
-
-      log("###############: ", this.me.serialize())
-
       this.socket.send(JSON.stringify({
         method: 'joinLobby',
         lobby_id: this.lobby.id,

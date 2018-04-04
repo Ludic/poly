@@ -1,17 +1,18 @@
 import Connection from './Connection.js'
 
 export default class Peer {
-  constructor(lobby, id){
+  constructor(lobby, id, ws){
     this.id = id ? id : Math.floor(Math.random() * Math.floor(100000))
     this.lobby = lobby
     this.connections = []
+    this.ws = ws
   }
 
   async initConnections(){
     // Create connections for each peer already in the Lobby
     let promises = []
     this.lobby.peers.forEach(peer => {
-      let connection = new Connection(this, peer, this.onIceCandidate)
+      let connection = new Connection(this, peer, this.ws)
       promises.push(connection.peerA_init())
       this.connections.push(connection)
     })
@@ -19,24 +20,28 @@ export default class Peer {
     return Promise.all(promises)
   }
 
-  onIceCandidate(){
-
-  }
-
   async onPeerJoined(peer){
-    let connection = new Connection(peer, this, this.onIceCandidate)
+    let connection = new Connection(peer, this, this.ws)
     this.connections.push(connection)
     return await connection.peerB_init(peer)
   }
 
   async onPeerBAnswer(from, desc){
-    console.log("from: ", from)
-    console.log("this: ", this)
-
     this.connections.forEach(connection => {
       if(connection.peerB.id == from.id){
-        console.log("\n YES")
         connection.onPeerBAnswer(desc)
+      }
+    })
+  }
+
+  async onPeerICECandidate(from, candidate){
+    console.log("onPeerICECandidate: ", from)
+    this.connections.forEach(connection => {
+      if(connection.peerB.id == from){
+        connection.onPeerBICECandidate(candidate)
+      }
+      if(connection.peerA.id == from){
+        connection.onPeerAICECandidate(candidate)
       }
     })
   }

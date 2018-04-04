@@ -5,7 +5,6 @@ var onLobbyUpdated = function(lobby){
 }
 
 var onLobbyAdded = function(lobby){
-  console.log("onLobbyAdded \n", lobby)
   let lobbies_list = document.getElementById("lobbies-list")
 
   lobbies_list.appendChild(document.createTextNode(lobby.id))

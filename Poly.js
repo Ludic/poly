@@ -51,7 +51,7 @@ class Poly {
     log("peerJoined")
     let lobby_id = data.lobby_id
     let peer = data.peer
-    if(lobby_id == this.lobby.id){
+    if(this.lobby && lobby_id == this.lobby.id){
       let desc = await this.me.onPeerJoined(peer)
 
       this.socket.send(JSON.stringify({
@@ -67,7 +67,7 @@ class Poly {
     let to = data.to
     let from = data.from
     let desc = data.desc
-    if(to == this.me.id){
+    if(this.me && to == this.me.id){
       await this.me.onPeerBAnswer(from, desc)
     }
   }
@@ -77,7 +77,7 @@ class Poly {
     let to = data.to
     let from = data.from
     let candidate = data.candidate
-    if(to == this.me.id){
+    if(this.me && to == this.me.id){
       await this.me.onPeerICECandidate(from, candidate)
     }
   }
@@ -99,7 +99,6 @@ class Poly {
   async join(lobby){
     this.lobby = new Lobby(lobby.id, lobby.peers)
     this.me = new Peer(this.lobby, null, this.socket)
-    log(this.me)
 
     return this.me.initConnections().then(() => {
       this.lobby.join(this.me)

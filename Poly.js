@@ -30,7 +30,6 @@ class Poly {
   }
 
   lobbyAdded(event, data){
-    log("lobbyAdded", data)
     let lobby = JSON.parse(data.lobby)
     this.lobbies.push(lobby)
     this.onLobbyAdded(lobby)
@@ -47,13 +46,15 @@ class Poly {
   //   this.onLobbiesUpdated(this.lobbies)
   // }
 
+  // When a new Peer Joins a Lobby, update the local Lobby, if the Peer joined your Lobby connect
   async peerJoined(event, data){
-    log("peerJoined")
-    let lobby_id = data.lobby_id
     let peer = data.peer
-    if(this.lobby && lobby_id == this.lobby.id){
-      let desc = await this.me.onPeerJoined(peer)
+    let lobby = this.lobbies.find(lobby => lobby.id == data.lobby.id)
+    lobby.peers.push(data.peer)
 
+    if(this.lobby && lobby.id == this.lobby.id){
+      log("peerJoined", data.peer)
+      let desc = await this.me.onPeerJoined(peer)
       this.socket.send(JSON.stringify({
         method: 'peerBAnswer',
         to: peer.id,
@@ -73,15 +74,14 @@ class Poly {
   }
 
   async peerCandidate(event, data){
-    log("peerCandidate: ", data)
     let to = data.to
     let from = data.from
     let candidate = data.candidate
     if(this.me && to == this.me.id){
+      log("peerCandidate: ", data)
       await this.me.onPeerICECandidate(from, candidate)
     }
   }
-
 
   // Methods
   host(){
@@ -101,6 +101,7 @@ class Poly {
     this.me = new Peer(this.lobby, null, this.socket)
 
     return this.me.initConnections().then(() => {
+      log("join: me", this.me)
       this.lobby.join(this.me)
       this.socket.send(JSON.stringify({
         method: 'joinLobby',

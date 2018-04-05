@@ -5,12 +5,8 @@ export default class Connection {
     this.peerA = peerA
     this.peerB = peerB
     this.ws = ws
-    this.A = {
-      ice_candidates: []
-    }
-    this.B = {
-      ice_candidates: []
-    }
+    this.A = {}
+    this.B = {}
     this.servers = null
     this.dataChannelParams = {
       ordered: false
@@ -30,6 +26,7 @@ export default class Connection {
     console.log('Created a RTC: ', this.A.rtc)
 
     // Create a DataChannel for peerA
+    this.A.rtc.ondatachannel = this.peerA_onDataChannel.bind(this)
     this.A.dc = this.A.rtc.createDataChannel("dc", this.dataChannelParams)
     this.A.dc.binaryType = 'arraybuffer'
 
@@ -57,7 +54,8 @@ export default class Connection {
 
   peerA_onOpen(event){
     log("peerA_onOpen: ", event)
-    this.A.dc.send("FUCK")
+    this.peerA.onConnected(this.peerB, this.A.dc)
+    // this.A.dc.send("FUCK")
   }
 
   peerA_onClose(event){
@@ -91,7 +89,6 @@ export default class Connection {
   peerA_onIceCandidate(event) {
     log("peerA_onIceCandidate: ", event)
     if(event.candidate){
-      this.A.ice_candidates.push(event.candidate)
       this.ws.send(JSON.stringify({
         method: 'peerCandidate',
         from: this.peerA.id,
@@ -147,24 +144,13 @@ export default class Connection {
     log("GOT A FUCKING DATA CHANNEL!", event)
     this.B.dc = event.channel
     this.B.dc.onmessage = this.peerB_onMessage.bind(this)
+    this.peerB.onConnected(this.peerA, this.B.dc)
     this.B.dc.send("FUCK you!!!!!!!!!!!!")
-    log("sent something")
-  }
-
-  // Remote receives initial desc
-  peerB_onOffer(desc){
-    console.log("onOffer")
-    if(!this.isHost){
-      this.peerB.rtc.setRemoteDescription(desc).catch(error => {
-        console.error(error)
-      })
-    }
   }
 
   peerB_onIceCandidate(event) {
     console.log("peerB_onIceCandidate: ", event)
     if(event.candidate){
-      this.B.ice_candidates.push(event.candidate)
       this.ws.send(JSON.stringify({
         method: 'peerCandidate',
         from: this.peerB.id,
@@ -181,33 +167,16 @@ export default class Connection {
     })
   }
 
-
-
-  onAddIceCandidateSuccess(){
-    console.log('AddIceCandidate success.')
-  }
-
-  onAddIceCandidateError(error) {
-    console.log('Failed to add Ice Candidate: ' + error.toString())
-  }
-
-  onCreateSessionDescriptionError(error){
-    console.log("Failed to cretae session description: ", error)
-  }
-
-
   serialize(){
     return {
       a: {
         peer_id: this.peerA.id,
         localDescription: this.A.rtc ? this.A.rtc.localDescription : null,
-        ice_candidates: this.A.ice_candidates,
-      },
+       },
       b: {
         peer_id: this.peerB.id,
         localDescription: this.B.rtc ? this.B.localDescription : null,
-        ice_candidates: this.B.ice_candidates,
-      }
+       }
     }
   }
 

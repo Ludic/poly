@@ -3,7 +3,7 @@ import Peer from './Peer.js'
 
 const log = console.log
 // const POLY_SERVER_URI = 'ws://localhost:3000'
-const POLY_SERVER_URI = 'ws://ec2-54-237-211-201.compute-1.amazonaws.com:3000/'
+const POLY_SERVER_URI = 'ws://ec2-18-233-160-38.compute-1.amazonaws.com:3000'
 
 class Poly {
   constructor(){
